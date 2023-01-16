@@ -181,6 +181,8 @@ impl Painter {
     }
 
     pub fn new(window: &mut glfw::Window) -> Painter {
+        gl::load_with(|symbol| window.get_proc_address(symbol) as *const _); // this is needed for us specifically because we don't use the gl crate so the functions aren't loaded automatically
+
         let vs = compile_shader(include_str!("shader/vertex.vert"), gl::VERTEX_SHADER);
         let fs = compile_shader(include_str!("shader/fragment.frag"), gl::FRAGMENT_SHADER);
 
