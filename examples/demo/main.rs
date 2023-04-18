@@ -19,7 +19,7 @@ fn main() {
         glfw::OpenGlProfileHint::Core,
     ));
     glfw.window_hint(glfw::WindowHint::DoubleBuffer(true));
-    glfw.window_hint(glfw::WindowHint::Resizable(false));
+    glfw.window_hint(glfw::WindowHint::Resizable(true));
 
     let (mut window, events) = glfw
         .create_window(
@@ -34,6 +34,7 @@ fn main() {
     window.set_cursor_pos_polling(true);
     window.set_key_polling(true);
     window.set_mouse_button_polling(true);
+    window.set_size_polling(true);
     window.make_current();
     glfw.set_swap_interval(glfw::SwapInterval::Sync(1));
 
@@ -154,7 +155,12 @@ fn main() {
         for (_, event) in glfw::flush_messages(&events) {
             match event {
                 glfw::WindowEvent::Close => window.set_should_close(true),
+                glfw::WindowEvent::Size(width, height) => {
+                    painter.set_size(width as _, height as _);
+                    egui_backend::handle_event(event, &mut egui_input_state); // IMPORTANT, IF NOT DONE HERE THEN INPUT WILL NOT BE RESIZED ALONG WITH PAINTER!
+                }
                 _ => {
+                    println!("{:?}", event);
                     egui_backend::handle_event(event, &mut egui_input_state);
                 }
             }

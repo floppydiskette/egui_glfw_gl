@@ -42,7 +42,7 @@ pub fn handle_event(event: glfw::WindowEvent, state: &mut EguiInputState) {
     use glfw::WindowEvent::*;
 
     match event {
-        FramebufferSize(width, height) => {
+        Size(width, height) => {
             state.input.screen_rect = Some(Rect::from_min_size(
                 Pos2::new(0f32, 0f32),
                 egui::vec2(width as f32, height as f32)
@@ -107,6 +107,7 @@ pub fn handle_event(event: glfw::WindowEvent, state: &mut EguiInputState) {
                 state.input.events.push(Event::Key {
                     key,
                     pressed: false,
+                    repeat: false, // todo: detect key repeat
                     modifiers: state.modifiers,
                 });
             }
@@ -143,6 +144,7 @@ pub fn handle_event(event: glfw::WindowEvent, state: &mut EguiInputState) {
                     state.input.events.push(Event::Key {
                         key,
                         pressed: true,
+                        repeat: false, // todo: detect key repeat
                         modifiers: state.modifiers,
                     });
                 }
