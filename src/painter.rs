@@ -159,6 +159,19 @@ impl UserTexture {
     }
 }
 
+pub struct CallbackFn {
+    pub func: Box<dyn Fn() + Send + Sync + 'static>, // maybe in the future pass some useful data to the callback?
+}
+
+impl CallbackFn {
+    pub fn new<F: Fn() + Send + Sync + 'static>(callback: F) -> Self {
+        let f = Box::new(callback);
+        Self {
+            func: f
+        }
+    }
+}
+
 pub struct Painter {
     program: GLuint,
 
@@ -292,8 +305,42 @@ impl Painter {
                     }
                 }
 
-                Primitive::Callback(_) => {
-                    panic!("Custom rendering callbacks are not implemented in egui_glium");
+                Primitive::Callback(callback) => {
+                    self.paint_callback(callback.callback.downcast_ref::<CallbackFn>().unwrap(), &callback.rect, pixels_per_point);
+                    unsafe {
+                        //Let OpenGL know we are dealing with SRGB colors so that it
+                        //can do the blending correctly. Not setting the framebuffer
+                        //leads to darkened, oversaturated colors.
+                        gl::Enable(gl::FRAMEBUFFER_SRGB);
+
+                        gl::Enable(gl::SCISSOR_TEST);
+                        gl::Enable(gl::BLEND);
+                        gl::BlendFunc(gl::ONE, gl::ONE_MINUS_SRC_ALPHA); // premultiplied alpha
+                        gl::UseProgram(self.program);
+                        gl::ActiveTexture(gl::TEXTURE0);
+                    }
+
+                    let u_screen_size = CString::new("u_screen_size").unwrap();
+                    let u_screen_size_ptr = u_screen_size.as_ptr();
+                    let u_screen_size_loc = unsafe { gl::GetUniformLocation(self.program, u_screen_size_ptr) };
+                    let screen_size_pixels = egui::vec2(self.canvas_width as f32, self.canvas_height as f32);
+                    let screen_size_points = screen_size_pixels / pixels_per_point;
+
+                    unsafe {
+                        gl::Uniform2f(
+                            u_screen_size_loc,
+                            screen_size_points.x,
+                            screen_size_points.y,
+                        );
+                    }
+
+                    let u_sampler = CString::new("u_sampler").unwrap();
+                    let u_sampler_ptr = u_sampler.as_ptr();
+                    let u_sampler_loc = unsafe { gl::GetUniformLocation(self.program, u_sampler_ptr) };
+                    unsafe {
+                        gl::Uniform1i(u_sampler_loc, 0);
+                        gl::Viewport(0, 0, self.canvas_width as i32, self.canvas_height as i32);
+                    }
                 }
             }
         }
@@ -344,6 +391,59 @@ impl Painter {
 
         texture.pixels = pixels.iter().flat_map(|a| a.to_array()).collect();
         texture.dirty = true;
+    }
+
+    fn paint_callback(&self, callback: &CallbackFn, clip_rect: &Rect, pixels_per_point: f32) {
+        let screen_size_pixels =
+            egui::vec2(self.canvas_width as f32, self.canvas_height as f32);
+        let clip_min_x = pixels_per_point * clip_rect.min.x;
+        let clip_min_y = pixels_per_point * clip_rect.min.y;
+        let clip_max_x = pixels_per_point * clip_rect.max.x;
+        let clip_max_y = pixels_per_point * clip_rect.max.y;
+        let clip_min_x = clip_min_x.clamp(0.0, screen_size_pixels.x);
+        let clip_min_y = clip_min_y.clamp(0.0, screen_size_pixels.y);
+        let clip_max_x = clip_max_x.clamp(clip_min_x, screen_size_pixels.x);
+        let clip_max_y = clip_max_y.clamp(clip_min_y, screen_size_pixels.y);
+        let clip_min_x = clip_min_x.round() as i32;
+        let clip_min_y = clip_min_y.round() as i32;
+        let clip_max_x = clip_max_x.round() as i32;
+        let clip_max_y = clip_max_y.round() as i32;
+        // gl viewport fuckery that makes draw calls show up in the clip rect
+        // x, y, width, height
+        let window_size = (0, 0, self.canvas_width, self.canvas_height);
+        let clip_size = {
+            let mut left = (0, 0);
+            let mut right = (0, 0);
+            // decide
+            if (clip_min_x < clip_max_x) && (clip_min_y < clip_max_y) {
+                left = (clip_min_x, clip_min_y);
+                right = (clip_max_x, clip_max_y);
+            } else {
+                left = (clip_max_x, clip_max_y);
+                right = (clip_min_x, clip_min_y);
+            }
+            (left.0, left.1, right.0 - left.0, right.1 - left.1)
+        };
+
+        unsafe {
+            gl::Enable(gl::SCISSOR_TEST);
+            gl::Viewport(
+                clip_size.0,
+                self.canvas_height as i32 - clip_size.1 - clip_size.3,
+                clip_size.2,
+                clip_size.3,
+            );
+            unsafe {
+                gl::Scissor(
+                    clip_min_x,
+                    self.canvas_height as i32 - clip_max_y,
+                    clip_max_x - clip_min_x,
+                    clip_max_y - clip_min_y,
+                );
+            }
+        }
+
+        (callback.func)();
     }
 
     fn paint_mesh(&self, mesh: &Mesh, clip_rect: &Rect, pixels_per_point: f32) {
