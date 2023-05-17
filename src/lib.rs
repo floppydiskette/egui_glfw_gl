@@ -57,7 +57,7 @@ pub fn handle_event(event: glfw::WindowEvent, state: &mut EguiInputState) {
                     glfw::MouseButtonLeft => egui::PointerButton::Primary,
                     glfw::MouseButtonRight => egui::PointerButton::Secondary,
                     glfw::MouseButtonMiddle => egui::PointerButton::Middle,
-                    _ => unreachable!(),
+                    _ => egui::PointerButton::Primary, // unreachable causes crash on mice with more than 3 buttons
                 },
                 pressed: true,
                 modifiers: state.modifiers,
@@ -71,7 +71,7 @@ pub fn handle_event(event: glfw::WindowEvent, state: &mut EguiInputState) {
                     glfw::MouseButtonLeft => egui::PointerButton::Primary,
                     glfw::MouseButtonRight => egui::PointerButton::Secondary,
                     glfw::MouseButtonMiddle => egui::PointerButton::Middle,
-                    _ => unreachable!(),
+                    _ => egui::PointerButton::Primary, // unreachable causes crash on mice with more than 3 buttons
                 },
                 pressed: false,
                 modifiers: state.modifiers,
