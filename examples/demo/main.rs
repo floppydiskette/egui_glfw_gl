@@ -13,7 +13,7 @@ const PIC_HEIGHT: i32 = 192;
 mod triangle;
 
 fn main() {
-    let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+    let mut glfw = glfw::init(glfw::fail_on_errors).unwrap();
     glfw.window_hint(glfw::WindowHint::ContextVersion(3, 2));
     glfw.window_hint(glfw::WindowHint::OpenGlProfile(
         glfw::OpenGlProfileHint::Core,
@@ -119,7 +119,6 @@ fn main() {
 
             //Image just needs a texture id reference, so we just pass it the texture id that was returned to us
             //when we previously initialized the texture.
-            ui.add(Image::new(plot_tex_id, vec2(PIC_WIDTH as f32, PIC_HEIGHT as f32)));
             ui.separator();
             ui.label("A simple sine wave plotted onto a GL texture then blitted to an egui managed Image.");
             ui.label(" ");

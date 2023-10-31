@@ -3,6 +3,8 @@
 
 // Re-export dependencies.
 pub use egui;
+#[cfg(feature = "egui_extras")]
+pub use egui_extras;
 pub use gl;
 pub use glfw;
 
